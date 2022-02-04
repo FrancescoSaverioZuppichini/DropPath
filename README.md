@@ -285,7 +285,7 @@ class BottleNeck(nn.Module):
             ConvBnAct(in_features, out_features // reduction, kernel_size=1),
             # narrow -> narrow
             ConvBnAct( out_features // reduction, out_features // reduction, kernel_size=3),
-            # wide -> narrow
+            # narrow -> wide
             ConvBnAct( out_features // reduction, out_features, kernel_size=1),
         )
         # I am lazy, no shortcut etc
@@ -318,7 +318,7 @@ class BottleNeck(nn.Module):
             ConvBnAct(in_features, out_features // reduction, kernel_size=1),
             # narrow -> narrow
             ConvBnAct( out_features // reduction, out_features // reduction, kernel_size=3),
-            # wide -> narrow
+            # narrow -> wide
             ConvBnAct( out_features // reduction, out_features, kernel_size=1),
         )
         # I am lazy, no shortcut etc
