@@ -1,23 +1,20 @@
-```python
-%load_ext memory_profiler
-
-```
-
 # Implementing Stochastic Depth/Drop Path In PyTorch
 
 DropPath is available on [glasses](https://github.com/FrancescoSaverioZuppichini/glasses) my computer vision library!
 
-## Introduction
-Today we are going to implement Stochastic Depth also known as Drop Path in PyTorch! [Stochastic Depth](https://arxiv.org/abs/1603.09382) introduced by Gao Huang et al is technique to "deactivate" some layers during training.  
+Code is [here](https://github.com/FrancescoSaverioZuppichini/DropPath), an interactive version of this article can be downloaded from [here](https://github.com/FrancescoSaverioZuppichini/DropPath/blob/main/README.ipynb).
 
-Let's take a look at a normal ResNet Block that uses residual connections (like almost all models now).If you are not familiar with ResNet, I have an [article](https://towardsdatascience.com/residual-network-implementing-resnet-a7da63c7b278) showing how to implement it. 
+## Introduction
+Today we are going to implement Stochastic Depth also known as Drop Path in PyTorch! [Stochastic Depth](https://arxiv.org/abs/1603.09382) introduced by Gao Huang et al is a technique to "deactivate" some layers during training. We'll stick with **DropPath**.
+
+Let's take a look at a normal ResNet Block that uses residual connections (like almost all models now). If you are not familiar with ResNet, I have an [article](https://towardsdatascience.com/residual-network-implementing-resnet-a7da63c7b278) showing how to implement it. 
 
 Basically, the block's output is added to its input: `output = block(input) + input`. This is called a **residual connection**
 
 ![alt](./images/ResNetBlock.svg)
 
 
-Here we see four ResnNet like  blocks, one after the other. 
+Here we see four ResnNet like blocks, one after the other. 
 
 ![alt](./images/StochasticDepthBase.svg)
 
@@ -25,7 +22,7 @@ Stochastic Depth/Drop Path will deactivate some of the block's weight
 
 ![alt](./images/StochasticDepthActive.svg)
 
-The idea is to reduce the number of layers/block used during training, saving time and make the network generalize better. 
+The idea is to reduce the number of layers/blocks used during training, saving time and making the network generalize better. 
 
 Practically, this means setting to zero the output of the block before adding.
 
@@ -39,7 +36,7 @@ from torch import nn
 from torch import Tensor
 ```
 
-We can define a 4D tensor (`batch x channels x height x width`), in our case let's just send 4 images with one pixel each :) 
+We can define a 4D tensor (`batch x channels x height x width`), in our case let's just send 4 images with one pixel each, so it's easier to see what's going on :) 
 
 
 ```python
@@ -59,16 +56,16 @@ mask
 
 
 
-    tensor([[[[0.]]],
+    tensor([[[[1.]]],
     
     
             [[[1.]]],
     
     
-            [[[1.]]],
+            [[[0.]]],
     
     
-            [[[1.]]]])
+            [[[0.]]]])
 
 
 
@@ -77,48 +74,14 @@ Btw, this is equivelant to
 
 ```python
 mask: Tensor = (torch.rand(x.shape[0], 1, 1, 1) > keep_prob).float()
-mask
 ```
 
-
-
-
-    tensor([[[[1.]]],
-    
-    
-            [[[1.]]],
-    
-    
-            [[[1.]]],
-    
-    
-            [[[1.]]]])
-
-
-
-Before we multiply `x` by the `mask` we need to divide `x` by  `keep_prob` to rescale down the inputs activation during training, see [cs231n](https://cs231n.github.io/neural-networks-2/#reg). So
+We want to set some of `x`'s elements to zero, since our masks are composed by `0`s and `1`s, we can multiply it by `x`. Before we do it, we need to divide `x` by  `keep_prob` to rescale down the activation of the input during training, see [cs231n](https://cs231n.github.io/neural-networks-2/#reg). So
 
 
 ```python
 x_scaled : Tensor = x / keep_prob
-x_scaled
 ```
-
-
-
-
-    tensor([[[[2.]]],
-    
-    
-            [[[2.]]],
-    
-    
-            [[[2.]]],
-    
-    
-            [[[2.]]]])
-
-
 
 Finally
 
@@ -144,7 +107,7 @@ output
 
 
 
-We can put together in a function
+We can put it together in a function
 
 
 ```python
@@ -165,14 +128,14 @@ drop_path(x, keep_prob=0.5)
             [[[0.]]],
     
     
-            [[[2.]]],
+            [[[0.]]],
     
     
-            [[[0.]]]])
+            [[[2.]]]])
 
 
 
-We can also do the operation in place 
+We can also do the operations inplace 
 
 
 ```python
@@ -192,17 +155,17 @@ drop_path(x, keep_prob=0.5)
     tensor([[[[2.]]],
     
     
-            [[[2.]]],
+            [[[0.]]],
     
     
             [[[0.]]],
     
     
-            [[[0.]]]])
+            [[[2.]]]])
 
 
 
-However, we may want to use `x` somewhere else, and dividing `x` or `mask` by `keep_prob` is the same thing. Let's arrive at the final implementation
+However, we may want to use `x` somewhere else, and dividing `x` or `mask` by `keep_prob` is the same. Let's arrive at the final implementation
 
 
 ```python
@@ -216,22 +179,22 @@ def drop_path(x: Tensor, keep_prob: float = 1.0, inplace: bool = False) -> Tenso
     return x
 
 x = torch.ones((4, 1, 1, 1))
-drop_path(x, keep_prob=0.8)
+drop_path(x, keep_prob=0.5)
 ```
 
 
 
 
-    tensor([[[[1.2500]]],
+    tensor([[[[0.]]],
     
     
-            [[[1.2500]]],
+            [[[0.]]],
     
     
-            [[[1.2500]]],
+            [[[0.]]],
     
     
-            [[[1.2500]]]])
+            [[[2.]]]])
 
 
 
@@ -251,16 +214,16 @@ def drop_path(x: Tensor, keep_prob: float = 1.0, inplace: bool = False) -> Tenso
     return x
 
 x = torch.ones((4, 1))
-drop_path(x, keep_prob=0.8)
+drop_path(x, keep_prob=0.5)
 ```
 
 
 
 
     tensor([[0.],
-            [0.],
-            [0.],
-            [0.]])
+            [2.],
+            [2.],
+            [2.]])
 
 
 
@@ -298,7 +261,7 @@ DropPath()(torch.ones((4, 1)))
 
 ## Usage with Residual Connections
 
-We have our `DropPath`, cool but how do we use it? We need a classic ResNet block, let's implement our good old friend `BottleNeckBlock`
+We have our `DropPath`, cool! How do we use it? We need a residual block, we can use a classic ResNet block: the good old friend `BottleNeckBlock`
 
 
 ```python
@@ -370,65 +333,11 @@ class BottleNeck(nn.Module):
 BottleNeck(64, 64)(torch.ones((1,64, 28, 28)))
 ```
 
-
-
-
-    tensor([[[[1.0009, 1.0000, 1.0000,  ..., 1.0000, 1.0000, 1.0000],
-              [1.0134, 1.0034, 1.0034,  ..., 1.0034, 1.0034, 1.0000],
-              [1.0134, 1.0034, 1.0034,  ..., 1.0034, 1.0034, 1.0000],
-              ...,
-              [1.0134, 1.0034, 1.0034,  ..., 1.0034, 1.0034, 1.0000],
-              [1.0134, 1.0034, 1.0034,  ..., 1.0034, 1.0034, 1.0000],
-              [1.0000, 1.0000, 1.0000,  ..., 1.0000, 1.0000, 1.0000]],
-    
-             [[1.0005, 1.0000, 1.0000,  ..., 1.0000, 1.0000, 1.0000],
-              [1.0000, 1.0000, 1.0000,  ..., 1.0000, 1.0000, 1.0421],
-              [1.0000, 1.0000, 1.0000,  ..., 1.0000, 1.0000, 1.0421],
-              ...,
-              [1.0000, 1.0000, 1.0000,  ..., 1.0000, 1.0000, 1.0421],
-              [1.0000, 1.0000, 1.0000,  ..., 1.0000, 1.0000, 1.0421],
-              [1.0000, 1.0011, 1.0011,  ..., 1.0011, 1.0011, 1.0247]],
-    
-             [[1.0203, 1.0123, 1.0123,  ..., 1.0123, 1.0123, 1.0299],
-              [1.0000, 1.0005, 1.0005,  ..., 1.0005, 1.0005, 1.0548],
-              [1.0000, 1.0005, 1.0005,  ..., 1.0005, 1.0005, 1.0548],
-              ...,
-              [1.0000, 1.0005, 1.0005,  ..., 1.0005, 1.0005, 1.0548],
-              [1.0000, 1.0005, 1.0005,  ..., 1.0005, 1.0005, 1.0548],
-              [1.0000, 1.0000, 1.0000,  ..., 1.0000, 1.0000, 1.0000]],
-    
-             ...,
-    
-             [[1.0011, 1.0180, 1.0180,  ..., 1.0180, 1.0180, 1.0465],
-              [1.0000, 1.0000, 1.0000,  ..., 1.0000, 1.0000, 1.0245],
-              [1.0000, 1.0000, 1.0000,  ..., 1.0000, 1.0000, 1.0245],
-              ...,
-              [1.0000, 1.0000, 1.0000,  ..., 1.0000, 1.0000, 1.0245],
-              [1.0000, 1.0000, 1.0000,  ..., 1.0000, 1.0000, 1.0245],
-              [1.0000, 1.0000, 1.0000,  ..., 1.0000, 1.0000, 1.0000]],
-    
-             [[1.0130, 1.0170, 1.0170,  ..., 1.0170, 1.0170, 1.0213],
-              [1.0052, 1.0000, 1.0000,  ..., 1.0000, 1.0000, 1.0065],
-              [1.0052, 1.0000, 1.0000,  ..., 1.0000, 1.0000, 1.0065],
-              ...,
-              [1.0052, 1.0000, 1.0000,  ..., 1.0000, 1.0000, 1.0065],
-              [1.0052, 1.0000, 1.0000,  ..., 1.0000, 1.0000, 1.0065],
-              [1.0012, 1.0139, 1.0139,  ..., 1.0139, 1.0139, 1.0065]],
-    
-             [[1.0103, 1.0181, 1.0181,  ..., 1.0181, 1.0181, 1.0539],
-              [1.0001, 1.0016, 1.0016,  ..., 1.0016, 1.0016, 1.0231],
-              [1.0001, 1.0016, 1.0016,  ..., 1.0016, 1.0016, 1.0231],
-              ...,
-              [1.0001, 1.0016, 1.0016,  ..., 1.0016, 1.0016, 1.0231],
-              [1.0001, 1.0016, 1.0016,  ..., 1.0016, 1.0016, 1.0231],
-              [1.0000, 1.0000, 1.0000,  ..., 1.0000, 1.0000, 1.0000]]]],
-           grad_fn=<AddBackward0>)
-
-
-
 Tada🎉! Now, randomly, our `.block` will be completely skipped! 
 
+### Conclusion
+In this article, we have seen how to implement DropPath and use it inside a residual block. Hopefully, when you'll read/see drop path/stochastic depth you know how it's made 
 
-```python
+Take care :)
 
-```
+Francesco
